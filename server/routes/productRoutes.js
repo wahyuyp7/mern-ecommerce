@@ -1,24 +1,41 @@
-import express from "express";
+import express from "express"
 import {
-  createProduct,
   getProducts,
-  getProductById,
+  createProduct,
   updateProduct,
   deleteProduct,
-} from "../controllers/productController.js";
-import { protect, adminOnly } from "../middleware/authMiddleware.js";
+} from "../controllers/productController.js"
 
-const router = express.Router();
+import { protect, adminOnly } from "../middleware/authMiddleware.js"
+import upload from "../middleware/uploadMiddleware.js"
 
-// /api/products
-router.route("/")
-  .get(getProducts)
-  .post(protect, adminOnly, createProduct);
+const router = express.Router()
 
-// /api/products/:id
-router.route("/:id")
-  .get(getProductById)
-  .put(protect, adminOnly, updateProduct)
-  .delete(protect, adminOnly, deleteProduct);
+// Public
+router.get("/", getProducts)
 
-export default router;
+// Admin
+router.post(
+  "/",
+  protect,
+  adminOnly,
+  upload.single("image"),
+  createProduct
+)
+
+router.put(
+  "/:id",
+  protect,
+  adminOnly,
+  upload.single("image"),
+  updateProduct
+)
+
+router.delete(
+  "/:id",
+  protect,
+  adminOnly,
+  deleteProduct
+)
+
+export default router

@@ -1,40 +1,40 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+
 import connectDB from "./config/db.js";
-import productRoutes from "./routes/productRoutes.js";
-import errorHandler from "./middleware/errorMiddleware.js";
+
 import userRoutes from "./routes/userRoutes.js";
+import productRoutes from "./routes/productRoutes.js";
+
+import orderRoutes from "./routes/orderRoutes.js";
+
+import {
+  notFound,
+  errorHandler,
+} from "./middleware/errorMiddleware.js";
 
 dotenv.config();
+connectDB();
 
 const app = express();
 
+// ===== MIDDLEWARE =====
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.use("/api/products", productRoutes);
-
+// ===== ROUTES =====
 app.use("/api/users", userRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/orders", orderRoutes);
 
-// error handler (PALING BAWAH)
+// ===== ERROR HANDLER (HARUS PALING BAWAH) =====
+app.use(notFound);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-const startServer = async () => {
-  try {
-    console.log("Starting server...");
-    await connectDB();                 // ⬅️ WAJIB ditunggu
-    console.log("Database connected");
-
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  } catch (error) {
-    console.error("Server failed to start:", error.message);
-    process.exit(1);
-  }
-};
-
-startServer();
+app.listen(PORT, () =>
+  console.log(`🚀 Server running on port ${PORT}`)
+);

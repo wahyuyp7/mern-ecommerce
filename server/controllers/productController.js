@@ -1,75 +1,131 @@
-import Product from "../models/Product.js";
-import ApiError from "../utils/ApiError.js";
-import asyncHandler from "../middleware/validateMiddleware.js";
+import Product from "../models/productModel.js"
+import cloudinary from "../config/cloudinary.js"
 
-// CREATE
-export const createProduct = asyncHandler(async (req, res) => {
-  const { name, price, description, countInStock } = req.body;
-
-  if (!name || price === undefined) {
-    throw new ApiError(400, "Name dan price wajib diisi");
+/* ===============================
+   GET ALL PRODUCTS (PUBLIC)
+================================ */
+export const getProducts = async (req, res, next) => {
+  try {
+    const products = await Product.find({})
+    res.json(products)
+  } catch (error) {
+    next(error)
   }
+}
 
-  if (price < 0 || countInStock < 0) {
-    throw new ApiError(400, "Price dan stock tidak boleh negatif");
+/* ===============================
+   CREATE PRODUCT (ADMIN)
+================================ */
+export const createProduct = async (req, res, next) => {
+  try {
+    const {
+      name,
+      price,
+      description,
+      category,
+      countInStock,
+    } = req.body
+
+    if (!req.file) {
+      res.status(400)
+      throw new Error("Image is required")
+    }
+
+    const b64 = Buffer.from(req.file.buffer).toString("base64")
+    const dataURI = `data:${req.file.mimetype};base64,${b64}`
+
+    const uploadResult = await cloudinary.uploader.upload(dataURI, {
+      folder: "products",
+    })
+
+    const product = await Product.create({
+      name,
+      price,
+      description,
+      category,
+      countInStock,
+      image: uploadResult.secure_url,
+      imagePublicId: uploadResult.public_id,
+    })
+
+    res.status(201).json(product)
+  } catch (error) {
+    next(error)
   }
+}
 
-  const product = await Product.create({
-    name,
-    price,
-    description,
-    countInStock,
-  });
+/* ===============================
+   UPDATE PRODUCT (ADMIN)
+================================ */
+export const updateProduct = async (req, res, next) => {
+  try {
+    const product = await Product.findById(req.params.id)
 
-  res.status(201).json(product);
-});
+    if (!product) {
+      res.status(404)
+      throw new Error("Product not found")
+    }
 
-// READ ALL
-export const getProducts = asyncHandler(async (req, res) => {
-  const products = await Product.find({});
-  res.json(products);
-});
+    const {
+      name,
+      price,
+      description,
+      category,
+      countInStock,
+    } = req.body
 
-// READ BY ID
-export const getProductById = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id);
+    product.name = name ?? product.name
+    product.price = price ?? product.price
+    product.description = description ?? product.description
+    product.category = category ?? product.category
+    product.countInStock = countInStock ?? product.countInStock
 
-  if (!product) {
-    throw new ApiError(404, "Product tidak ditemukan");
+    // 🖼️ Replace image jika ada file baru
+    if (req.file) {
+      // Hapus image lama
+      if (product.imagePublicId) {
+        await cloudinary.uploader.destroy(product.imagePublicId)
+      }
+
+      const b64 = Buffer.from(req.file.buffer).toString("base64")
+      const dataURI = `data:${req.file.mimetype};base64,${b64}`
+
+      const uploadResult = await cloudinary.uploader.upload(dataURI, {
+        folder: "products",
+      })
+
+      product.image = uploadResult.secure_url
+      product.imagePublicId = uploadResult.public_id
+    }
+
+    const updatedProduct = await product.save()
+    res.json(updatedProduct)
+  } catch (error) {
+    next(error)
   }
+}
 
-  res.json(product);
-});
+/* ===============================
+   DELETE PRODUCT (ADMIN)
+================================ */
+export const deleteProduct = async (req, res, next) => {
+  try {
+    const product = await Product.findById(req.params.id)
 
-// UPDATE
-export const updateProduct = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id);
-  if (!product) {
-    throw new ApiError(404, "Product tidak ditemukan");
+    if (!product) {
+      res.status(404)
+      throw new Error("Product not found")
+    }
+
+    // Hapus image Cloudinary
+    if (product.imagePublicId) {
+      await cloudinary.uploader.destroy(product.imagePublicId)
+    }
+
+    await product.deleteOne()
+
+    res.json({ message: "Product removed" })
+  } catch (error) {
+    next(error)
   }
-
-  const { name, price, description, countInStock } = req.body;
-
-  if (price !== undefined && price < 0) {
-    throw new ApiError(400, "Price tidak valid");
-  }
-
-  product.name = name ?? product.name;
-  product.price = price ?? product.price;
-  product.description = description ?? product.description;
-  product.countInStock = countInStock ?? product.countInStock;
-
-  const updated = await product.save();
-  res.json(updated);
-});
-
-// DELETE
-export const deleteProduct = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id);
-  if (!product) {
-    throw new ApiError(404, "Product tidak ditemukan");
-  }
-
-  await product.deleteOne();
-  res.json({ message: "Product berhasil dihapus" });
-});
+}
