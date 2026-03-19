@@ -24,3 +24,21 @@ export const registerUser = async (name, email, password) => {
   );
   return data;
 };
+
+export const updateUserProfile = async (payload) => {
+  const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+  const token = userInfo?.token;
+
+  const { data } = await axios.put(
+    `${API_URL}/api/users/profile`,
+    payload,
+    {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  return data;
+};

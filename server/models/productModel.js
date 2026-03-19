@@ -28,10 +28,11 @@ const productSchema = new mongoose.Schema(
     image: {
       type: String,
       required: true,
+      default: "https://via.placeholder.com/600x600?text=No+Image",
     },
     imagePublicId: {
       type: String,
-      required: true,
+      default: "",
     },
   },
   {

@@ -1,5 +1,15 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { FiChevronDown, FiLogOut, FiPackage, FiShoppingBag } from "react-icons/fi";
+
+const readStorageJson = (key, fallback) => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+};
 
 /* ICON CART */
 const IconCart = () => (
@@ -15,90 +25,181 @@ const IconCart = () => (
 
 const UserNavbar = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [cartCount, setCartCount] = useState(0);
+  const menuRef = useRef(null);
+  const [user, setUser] = useState(() =>
+    readStorageJson("userInfo", null)
+  );
+  const [cartCount, setCartCount] = useState(() => {
+    const cart = readStorageJson("cartItems", []);
+    return cart.reduce((a, c) => a + c.qty, 0);
+  });
+  const [cartBump, setCartBump] = useState(false);
   const [open, setOpen] = useState(false);
 
-  /* LOAD USER & CART */
   useEffect(() => {
-    const userInfo = JSON.parse(localStorage.getItem("userInfo"));
-    setUser(userInfo);
+    const closeOnOutside = (event) => {
+      if (!menuRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
 
-    const cart =
-      JSON.parse(localStorage.getItem("cartItems")) || [];
-    const count = cart.reduce((a, c) => a + c.qty, 0);
-    setCartCount(count);
+    document.addEventListener("mousedown", closeOnOutside);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutside);
+    };
   }, []);
+
+  useEffect(() => {
+    const syncUser = () => {
+      setUser(readStorageJson("userInfo", null));
+    };
+
+    window.addEventListener("user-updated", syncUser);
+
+    return () => {
+      window.removeEventListener("user-updated", syncUser);
+    };
+  }, []);
+
+  useEffect(() => {
+    const readCartCount = () => {
+      const cart = readStorageJson("cartItems", []);
+      const nextCount = cart.reduce((sum, item) => sum + item.qty, 0);
+      setCartCount((prev) => {
+        if (nextCount > prev) {
+          setCartBump(true);
+        }
+        return nextCount;
+      });
+    };
+
+    const onStorage = (event) => {
+      if (event.key === "cartItems") {
+        readCartCount();
+      }
+    };
+
+    readCartCount();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("cart-updated", readCartCount);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("cart-updated", readCartCount);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!cartBump) return;
+    const timer = setTimeout(() => setCartBump(false), 220);
+    return () => clearTimeout(timer);
+  }, [cartBump]);
 
   const logoutHandler = () => {
     localStorage.removeItem("userInfo");
+    window.dispatchEvent(new Event("user-updated"));
     navigate("/login");
   };
 
   return (
-    <nav className="bg-white sticky top-0 z-50 border-b">
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-        
-        {/* LOGO */}
-        <Link to="/" className="text-2xl font-bold text-blue-600">
-          TokoKu
+    <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-gray-100">
+      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+        <Link to="/" className="inline-flex items-center gap-2">
+          <span className="grid place-items-center h-9 w-9 rounded-xl bg-indigo-600 text-white">
+            <FiShoppingBag className="h-5 w-5" />
+          </span>
+          <span className="text-xl font-bold text-gray-800 tracking-tight">
+            TokoKu
+          </span>
         </Link>
 
-        {/* RIGHT MENU */}
-        <div className="flex items-center gap-6 relative">
-          
-          {/* CART */}
-          <Link to="/cart" className="relative text-gray-600 hover:text-blue-600">
+        <div className="hidden md:flex items-center gap-1">
+          <Link
+            to="/"
+            className="px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100"
+          >
+            Home
+          </Link>
+          {user && (
+            <Link
+              to="/myorders"
+              className="px-3 py-2 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100"
+            >
+              Pesanan Saya
+            </Link>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 relative" ref={menuRef}>
+          <Link
+            to="/cart"
+            className={`relative inline-flex items-center justify-center h-10 w-10 rounded-xl border border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 transition ${
+              cartBump ? "scale-110" : "scale-100"
+            }`}
+            aria-label="Keranjang"
+          >
             <IconCart />
             {cartCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 rounded-full">
+              <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] min-w-5 h-5 px-1 rounded-full grid place-items-center font-semibold">
                 {cartCount}
               </span>
             )}
           </Link>
 
-          {/* AUTH */}
           {!user ? (
-            <div className="flex gap-3 text-sm">
-              <Link to="/login" className="hover:text-blue-600">
+            <div className="flex items-center gap-2 text-sm">
+              <Link
+                to="/login"
+                className="px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
+              >
                 Login
               </Link>
               <Link
                 to="/register"
-                className="bg-blue-600 text-white px-3 py-1 rounded"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-lg font-medium"
               >
                 Register
               </Link>
             </div>
           ) : (
             <div className="relative">
-              {/* AVATAR */}
               <button
                 onClick={() => setOpen(!open)}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 rounded-xl border border-gray-200 px-2 py-1.5 hover:bg-gray-50"
               >
                 <img
                   src={`https://ui-avatars.com/api/?name=${user.name}&background=2563eb&color=fff`}
-                  className="h-8 w-8 rounded-full"
+                  className="h-8 w-8 rounded-lg"
                 />
-                <span className="text-sm hidden sm:block">
+                <span className="text-sm text-gray-700 hidden sm:block max-w-24 truncate">
                   {user.name}
                 </span>
+                <FiChevronDown className="text-gray-500" />
               </button>
 
-              {/* DROPDOWN */}
               {open && (
-                <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow">
+                <div className="absolute right-0 mt-2 w-52 bg-white border border-gray-100 rounded-xl shadow-lg p-1.5">
                   <Link
                     to="/myorders"
-                    className="block px-4 py-2 text-sm hover:bg-gray-100"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg text-gray-700 hover:bg-gray-100"
                   >
+                    <FiPackage className="h-4 w-4" />
                     My Orders
+                  </Link>
+                  <Link
+                    to={user?.isAdmin ? "/admin/products" : "/myorders"}
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg text-gray-700 hover:bg-gray-100"
+                  >
+                    <FiShoppingBag className="h-4 w-4" />
+                    {user?.isAdmin ? "Dashboard Admin" : "Profile"}
                   </Link>
                   <button
                     onClick={logoutHandler}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                    className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm rounded-lg text-rose-600 hover:bg-rose-50"
                   >
+                    <FiLogOut className="h-4 w-4" />
                     Logout
                   </button>
                 </div>

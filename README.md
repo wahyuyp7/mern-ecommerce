@@ -5,9 +5,9 @@ Project e-commerce berbasis MERN stack (MongoDB, Express, React, Node.js) dengan
 ## Fitur Utama
 
 - Autentikasi user: register dan login.
-- Marketplace: lihat daftar produk, detail produk, cart, dan place order.
-- Admin panel: login admin, kelola produk (create, update, delete), dan kelola order.
-- Upload gambar produk ke Cloudinary.
+- Marketplace: lihat daftar produk, detail produk, cart, place order, my orders, dan order detail.
+- Admin panel: login admin, dashboard, kelola produk, kelola order, dan edit profil admin.
+- Produk bisa dibuat dengan gambar upload Cloudinary atau tanpa gambar (otomatis placeholder).
 
 ## Tech Stack
 
@@ -107,16 +107,23 @@ Frontend berjalan di URL yang muncul di terminal Vite (umumnya `http://localhost
 - `npm run dev` - Jalankan server dengan nodemon.
 - `npm start` - Jalankan server mode normal.
 
+### Script Utility Server
+
+- `node scripts/resetAdminPassword.js` - Reset password admin `admin@test.com` ke `Admin12345`.
+- `node scripts/seedProductsNoImage.js` - Isi data contoh produk tanpa upload gambar.
+
 ## Endpoint API Utama
 
 ### User
 
 - `POST /api/users/register`
 - `POST /api/users/login`
+- `PUT /api/users/profile` (login)
 
 ### Product
 
 - `GET /api/products` (public)
+- `GET /api/products/:id` (public)
 - `POST /api/products` (admin)
 - `PUT /api/products/:id` (admin)
 - `DELETE /api/products/:id` (admin)
@@ -132,5 +139,6 @@ Frontend berjalan di URL yang muncul di terminal Vite (umumnya `http://localhost
 ## Catatan
 
 - Token autentikasi disimpan di `localStorage` pada frontend.
-- Upload gambar produk menggunakan `multipart/form-data`.
+- Upload gambar produk menggunakan `multipart/form-data` (opsional saat create).
 - Pastikan akun admin memiliki `isAdmin: true` di database agar bisa mengakses route admin.
+- Demi keamanan, hindari commit file `.env` ke repository publik.

@@ -1,6 +1,7 @@
 import express from "express"
 import {
   getProducts,
+  getProductById,
   createProduct,
   updateProduct,
   deleteProduct,
@@ -13,6 +14,7 @@ const router = express.Router()
 
 // Public
 router.get("/", getProducts)
+router.get("/:id", getProductById)
 
 // Admin
 router.post(

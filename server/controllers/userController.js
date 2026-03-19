@@ -55,3 +55,42 @@ export const registerUser = asyncHandler(async (req, res) => {
     throw new Error("Invalid user data");
   }
 });
+
+// @desc    Update logged in user profile
+// @route   PUT /api/users/profile
+// @access  Private
+export const updateUserProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+
+  const { name, email, password } = req.body;
+
+  if (email && email !== user.email) {
+    const emailUsed = await User.findOne({ email });
+    if (emailUsed) {
+      res.status(400);
+      throw new Error("Email already in use");
+    }
+  }
+
+  user.name = name || user.name;
+  user.email = email || user.email;
+
+  if (password) {
+    user.password = password;
+  }
+
+  const updatedUser = await user.save();
+
+  res.json({
+    _id: updatedUser._id,
+    name: updatedUser.name,
+    email: updatedUser.email,
+    isAdmin: updatedUser.isAdmin,
+    token: generateToken(updatedUser._id),
+  });
+});

@@ -14,6 +14,24 @@ export const getProducts = async (req, res, next) => {
 }
 
 /* ===============================
+  GET PRODUCT BY ID (PUBLIC)
+================================ */
+export const getProductById = async (req, res, next) => {
+  try {
+    const product = await Product.findById(req.params.id)
+
+    if (!product) {
+      res.status(404)
+      throw new Error("Product not found")
+    }
+
+    res.json(product)
+  } catch (error) {
+    next(error)
+  }
+}
+
+/* ===============================
    CREATE PRODUCT (ADMIN)
 ================================ */
 export const createProduct = async (req, res, next) => {
@@ -26,17 +44,20 @@ export const createProduct = async (req, res, next) => {
       countInStock,
     } = req.body
 
-    if (!req.file) {
-      res.status(400)
-      throw new Error("Image is required")
+    let image = "https://via.placeholder.com/600x600?text=No+Image"
+    let imagePublicId = ""
+
+    if (req.file) {
+      const b64 = Buffer.from(req.file.buffer).toString("base64")
+      const dataURI = `data:${req.file.mimetype};base64,${b64}`
+
+      const uploadResult = await cloudinary.uploader.upload(dataURI, {
+        folder: "products",
+      })
+
+      image = uploadResult.secure_url
+      imagePublicId = uploadResult.public_id
     }
-
-    const b64 = Buffer.from(req.file.buffer).toString("base64")
-    const dataURI = `data:${req.file.mimetype};base64,${b64}`
-
-    const uploadResult = await cloudinary.uploader.upload(dataURI, {
-      folder: "products",
-    })
 
     const product = await Product.create({
       name,
@@ -44,8 +65,8 @@ export const createProduct = async (req, res, next) => {
       description,
       category,
       countInStock,
-      image: uploadResult.secure_url,
-      imagePublicId: uploadResult.public_id,
+      image,
+      imagePublicId,
     })
 
     res.status(201).json(product)

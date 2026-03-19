@@ -47,6 +47,13 @@ export const getOrderById = async (req, res, next) => {
       throw new Error("Order not found");
     }
 
+    const isOwner = order.user?._id?.toString() === req.user._id.toString();
+    const isAdmin = req.user?.isAdmin;
+    if (!isOwner && !isAdmin) {
+      res.status(403);
+      throw new Error("Not authorized to access this order");
+    }
+
     res.json(order);
   } catch (error) {
     next(error);
